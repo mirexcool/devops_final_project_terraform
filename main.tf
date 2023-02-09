@@ -1,16 +1,20 @@
-#---------------Ansible Master----------------------------------
-# My terraform
+#-------------------------------------------------
+# My terraform file
 #
-# StartUp etst stage
+# StartUp dev stage infrusctructure
+#
+# Created by Yevhen Yefimov
 #
 #--------------------------------------------------
 
+# Select AWS cloud sevrice and it region.
 provider "aws" {
   region = "eu-west-3"
 }
 
+# Create instance with Amazon RedHat AMI.
 resource "aws_instance" "amazon_server" {
-  ami                    = "ami-0cc814d99c59f3789" # Amazon RedHat AMI
+  ami                    = data.aws_ami.latest_amazon_linux.id # Amazon RedHat AMI
   instance_type          = "t2.micro"
   vpc_security_group_ids = [aws_security_group.web_server_sg.id]
 
@@ -21,14 +25,16 @@ resource "aws_instance" "amazon_server" {
   key_name = "Ansible-Node-1"
 }
 
+# Link the eip to Amazon instance.
 resource "aws_eip_association" "amazon_server_eip" {
   instance_id   = aws_instance.amazon_server.id
   allocation_id = "eipalloc-0cea79d42edfef2aa"
 
 }
 
+# Create instance with Ubuntu AMI.
 resource "aws_instance" "ubuntu_server" {
-  ami                    = "ami-03b755af568109dc3" # Ubuntu AMI
+  ami                    = data.aws_ami.latest_ubuntu.id # Ubuntu AMI
   instance_type          = "t2.micro"
   vpc_security_group_ids = [aws_security_group.web_server_sg.id]
 
@@ -39,16 +45,16 @@ resource "aws_instance" "ubuntu_server" {
   key_name = "Ansible-Node-2"
 }
 
+# Link the eip to Ubuntu instance.
 resource "aws_eip_association" "ubuntu_server_eip" {
   instance_id   = aws_instance.ubuntu_server.id
   allocation_id = "eipalloc-05f6f2df267df28fe"
 }
 
+# Create Security Group for our instances.
 resource "aws_security_group" "web_server_sg" {
   name        = "Web Server Security Group"
   description = "Default SG for Web Server"
-
-
 
   ingress {
     from_port   = 22 #SSH port
@@ -83,12 +89,9 @@ resource "aws_security_group" "web_server_sg" {
     Name  = "Web Server SG"
     Owner = "mirexcool"
   }
-
 }
 
-
-
-#elb
+# Create Elastic Load Balancer for our instances.
 resource "aws_elb" "web" {
   name               = "WebServer-HA-ELB"
   availability_zones = [data.aws_availability_zones.available.names[0], data.aws_availability_zones.available.names[1], data.aws_availability_zones.available.names[2]]
@@ -106,15 +109,16 @@ resource "aws_elb" "web" {
     target              = "HTTP:8080/"
     interval            = 10
   }
+  # List of instances what needs to be added to ELB.
   instances                 = ["${aws_instance.amazon_server.id}", "${aws_instance.ubuntu_server.id}"]
   cross_zone_load_balancing = true
-  idle_timeout              = 40
+  idle_timeout              = 30
   tags = {
     Name = "WebServer-Highly-Available-ELB"
   }
 }
 
-
+# Find out availability zones.
 data "aws_availability_zones" "available" {}
 
 resource "aws_default_subnet" "default_az1" {
@@ -129,8 +133,8 @@ resource "aws_default_subnet" "default_az3" {
   availability_zone = data.aws_availability_zones.available.names[2]
 }
 
-
-resource "aws_route53_record" "www" {
+# Create a record to Route 53.
+resource "aws_route53_record" "dev_stage_record" {
   zone_id = "Z03826083D6Q2U2UR9XYE"
   name    = "dev.mirexcool.space"
   type    = "A"

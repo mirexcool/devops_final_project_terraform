@@ -1,4 +1,14 @@
+#-------------------------------------------------
+# My terraform file
+#
+# Making a jenkins server to be avaiable on
+# jenkins.mirexcool.space
+#
+# Created by Yevhen Yefimov
+#
+#--------------------------------------------------
 
+# Create a Elastic Load Balancer.
 resource "aws_elb" "jenkins" {
   name               = "Jenkins-ELB"
   availability_zones = [data.aws_availability_zones.available.names[0], data.aws_availability_zones.available.names[1], data.aws_availability_zones.available.names[2]]
@@ -17,6 +27,7 @@ resource "aws_elb" "jenkins" {
     target              = "HTTP:8080/login"
     interval            = 10
   }
+  # Put Jenkins instance to list.
   instances                 = ["i-0fd6787722b3b3acc"]
   cross_zone_load_balancing = true
   idle_timeout              = 80
@@ -25,6 +36,7 @@ resource "aws_elb" "jenkins" {
   }
 }
 
+# Create a record to Route 53.
 resource "aws_route53_record" "jenkins" {
   zone_id = "Z03826083D6Q2U2UR9XYE"
   name    = "jenkins.mirexcool.space"
